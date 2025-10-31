@@ -83,7 +83,7 @@ namespace AutoClicker
                 isRunning = true;
                 
                 cts = new CancellationTokenSource();
-                int cps = int.Parse(CpsBox.Text);
+                int intervalMs = GetIntervalMs();
                 bool mouseClick = MouseClickBox.IsChecked ?? false;
                 
                 int durationMs = GetDurationMs();
@@ -91,9 +91,9 @@ namespace AutoClicker
                 Key selectedKey = KeyBox.Tag as Key? ?? Key.A;
                 byte keyCode = (byte)KeyInterop.VirtualKeyFromKey(selectedKey);
                 
-                StatusText.Text = $"Running for {DurationBox.Text} {((ComboBoxItem)TimeUnitBox.SelectedItem).Content}... Press F6 to stop";
+                StatusText.Text = $"Clicking every {intervalMs}ms for {DurationBox.Text} {((ComboBoxItem)TimeUnitBox.SelectedItem).Content}... Press F6 to stop";
                 
-                await Task.Run(() => RunAutoClicker(cps, keyCode, mouseClick, durationMs, cts.Token));
+                await Task.Run(() => RunAutoClicker(intervalMs, keyCode, mouseClick, durationMs, cts.Token));
             }
             catch (Exception ex)
             {
@@ -115,6 +115,11 @@ namespace AutoClicker
             StartAutomation();
         }
 
+        private int GetIntervalMs()
+        {
+            return int.Parse(IntervalBox.Text);
+        }
+
         private int GetDurationMs()
         {
             int value = int.Parse(DurationBox.Text);
@@ -134,9 +139,8 @@ namespace AutoClicker
             StopAutomation();
         }
 
-        private void RunAutoClicker(int cps, byte keyCode, bool mouseClick, int durationMs, CancellationToken token)
+        private void RunAutoClicker(int intervalMs, byte keyCode, bool mouseClick, int durationMs, CancellationToken token)
         {
-            int delayMs = 1000 / cps;
             var endTime = DateTime.Now.AddMilliseconds(durationMs);
             
             while (!token.IsCancellationRequested && DateTime.Now < endTime)
@@ -152,7 +156,9 @@ namespace AutoClicker
                     mouse_event(0x0004, 0, 0, 0, UIntPtr.Zero);
                 }
                 
-                Thread.Sleep(delayMs - 20);
+                int remainingDelay = intervalMs - 20;
+                if (remainingDelay > 0)
+                    Thread.Sleep(remainingDelay);
             }
             
             Dispatcher.Invoke(() =>
