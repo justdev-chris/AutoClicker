@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 
@@ -73,7 +74,7 @@ namespace AutoClicker
             StatusText.Text = "Stopped by F6 - Press F6 to start";
         }
 
-        private void StartAutomation()
+        private async void StartAutomation()
         {
             try
             {
@@ -92,7 +93,7 @@ namespace AutoClicker
                 
                 StatusText.Text = $"Running for {DurationBox.Text} {((ComboBoxItem)TimeUnitBox.SelectedItem).Content}... Press F6 to stop";
                 
-                Task.Run(() => RunAutoClicker(cps, keyCode, mouseClick, durationMs, cts.Token));
+                await Task.Run(() => RunAutoClicker(cps, keyCode, mouseClick, durationMs, cts.Token));
             }
             catch (Exception ex)
             {
@@ -109,7 +110,7 @@ namespace AutoClicker
             KeyBox.Tag = e.Key;
         }
 
-        private async void StartBtn_Click(object sender, RoutedEventArgs e)
+        private void StartBtn_Click(object sender, RoutedEventArgs e)
         {
             StartAutomation();
         }
