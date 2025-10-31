@@ -14,8 +14,8 @@
             </ComboBox>
         </StackPanel>
         
-        <TextBlock Text="Clicks Per Second:" Margin="0,10,0,0"/>
-        <TextBox x:Name="CpsBox" Text="10"/>
+        <TextBlock Text="Click Interval (ms):" Margin="0,10,0,0"/>
+        <TextBox x:Name="IntervalBox" Text="1000"/>
         
         <TextBlock Text="Key to Press:" Margin="0,10,0,0"/>
         <TextBox x:Name="KeyBox" Text="Click here and press any key" 
