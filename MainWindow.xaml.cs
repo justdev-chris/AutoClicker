@@ -12,6 +12,7 @@ namespace AutoClicker
     {
         private CancellationTokenSource cts;
         private const int HOTKEY_ID = 9000;
+        private bool isRunning = false;
         
         public MainWindow()
         {
@@ -42,21 +43,62 @@ namespace AutoClicker
         {
             if (msg == 0x0312 && wParam.ToInt32() == HOTKEY_ID)
             {
-                StopAutomation();
+                ToggleAutomation();
                 handled = true;
             }
             return IntPtr.Zero;
         }
 
-        private void StopAutomation()
+        private void ToggleAutomation()
         {
             Dispatcher.Invoke(() =>
             {
-                cts?.Cancel();
-                StartBtn.IsEnabled = true;
-                StopBtn.IsEnabled = false;
-                StatusText.Text = "Stopped by F6";
+                if (isRunning)
+                {
+                    StopAutomation();
+                }
+                else
+                {
+                    StartAutomation();
+                }
             });
+        }
+
+        private void StopAutomation()
+        {
+            cts?.Cancel();
+            isRunning = false;
+            StartBtn.IsEnabled = true;
+            StopBtn.IsEnabled = false;
+            StatusText.Text = "Stopped by F6 - Press F6 to start";
+        }
+
+        private void StartAutomation()
+        {
+            try
+            {
+                StartBtn.IsEnabled = false;
+                StopBtn.IsEnabled = true;
+                isRunning = true;
+                
+                cts = new CancellationTokenSource();
+                int cps = int.Parse(CpsBox.Text);
+                bool mouseClick = MouseClickBox.IsChecked ?? false;
+                
+                int durationMs = GetDurationMs();
+                
+                Key selectedKey = KeyBox.Tag as Key? ?? Key.A;
+                byte keyCode = (byte)KeyInterop.VirtualKeyFromKey(selectedKey);
+                
+                StatusText.Text = $"Running for {DurationBox.Text} {((ComboBoxItem)TimeUnitBox.SelectedItem).Content}... Press F6 to stop";
+                
+                Task.Run(() => RunAutoClicker(cps, keyCode, mouseClick, durationMs, cts.Token));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error: {ex.Message}");
+                StopAutomation();
+            }
         }
 
         private void KeyBox_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -69,27 +111,21 @@ namespace AutoClicker
 
         private async void StartBtn_Click(object sender, RoutedEventArgs e)
         {
-            try
+            StartAutomation();
+        }
+
+        private int GetDurationMs()
+        {
+            int value = int.Parse(DurationBox.Text);
+            string unit = ((ComboBoxItem)TimeUnitBox.SelectedItem).Content.ToString();
+            
+            return unit switch
             {
-                StartBtn.IsEnabled = false;
-                StopBtn.IsEnabled = true;
-                StatusText.Text = "Running... Press F6 to stop";
-                
-                cts = new CancellationTokenSource();
-                int cps = int.Parse(CpsBox.Text);
-                bool mouseClick = MouseClickBox.IsChecked ?? false;
-                
-                Key selectedKey = KeyBox.Tag as Key? ?? Key.A;
-                byte keyCode = (byte)KeyInterop.VirtualKeyFromKey(selectedKey);
-                
-                await Task.Run(() => RunAutoClicker(cps, keyCode, mouseClick, cts.Token));
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error: {ex.Message}");
-                StartBtn.IsEnabled = true;
-                StopBtn.IsEnabled = false;
-            }
+                "Milliseconds" => value,
+                "Seconds" => value * 1000,
+                "Minutes" => value * 60000,
+                _ => 10000
+            };
         }
 
         private void StopBtn_Click(object sender, RoutedEventArgs e)
@@ -97,11 +133,12 @@ namespace AutoClicker
             StopAutomation();
         }
 
-        private void RunAutoClicker(int cps, byte keyCode, bool mouseClick, CancellationToken token)
+        private void RunAutoClicker(int cps, byte keyCode, bool mouseClick, int durationMs, CancellationToken token)
         {
             int delayMs = 1000 / cps;
+            var endTime = DateTime.Now.AddMilliseconds(durationMs);
             
-            while (!token.IsCancellationRequested)
+            while (!token.IsCancellationRequested && DateTime.Now < endTime)
             {
                 keybd_event(keyCode, 0, 0, UIntPtr.Zero);
                 Thread.Sleep(10);
@@ -116,6 +153,15 @@ namespace AutoClicker
                 
                 Thread.Sleep(delayMs - 20);
             }
+            
+            Dispatcher.Invoke(() =>
+            {
+                if (!token.IsCancellationRequested)
+                {
+                    StopAutomation();
+                    StatusText.Text = "Completed! Press F6 to start again";
+                }
+            });
         }
 
         [DllImport("user32.dll")]
@@ -129,5 +175,9 @@ namespace AutoClicker
         
         [DllImport("user32.dll")]
         static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+        
+        private void Window_KeyDown(object sender, KeyEventArgs e)
+        {
+        }
     }
 }
